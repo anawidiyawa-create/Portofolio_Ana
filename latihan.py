@@ -100,7 +100,7 @@ elif st.session_state.section == "churn_demo":
         st.success("Model berhasil dimuat! Siap prediksi.")
     except Exception as e:
         st.error(f"Error loading model: {e}\nCek path file di repo GitHub atau nama file joblib.")
-        st.stop()  # stop kalau error biar nggak crash seluruh app
+        st.stop()  
 
     # Form input
     col1, col2, col3 = st.columns(3)
