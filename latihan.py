@@ -21,6 +21,8 @@ with st.sidebar:
         st.session_state.section = "skills"
     if st.button("Projects", use_container_width=True):
         st.session_state.section = "projects"
+    if st.button("Churn Prediction Demo", use_container_width=True): 
+        st.session_state.section = "churn_demo"
     if st.button("Contact", use_container_width=True):
         st.session_state.section = "contact"
     
@@ -73,12 +75,84 @@ elif st.session_state.section == "projects":
     
     st.subheader("RFM Customer Analytics Dashboard")
     st.markdown("""
-    - Tech: Power BI + Python
-    - Tentang: Customer Segmentation & Revenue Growth Strategy RFM Analysis on Superstore Dataset (2014–2017)
+    - Tech: Power BI + Python    - Tentang: Customer Segmentation & Revenue Growth Strategy RFM Analysis on Superstore Dataset (2014–2017)
     - Impact: Mengidentifikasi segmen pelanggan utama, menentukan prioritas untuk retensi dan akuisisi, serta memberikan rekomendasi berbasis data guna meningkatkan kontribusi revenue.
     → [Demo](https://www.canva.com/design/DAG6EsCgLKs/3yOh8LwsAQdR9EIpENTYsA/view?utm_content=DAG6EsCgLKs&utm_campaign=designshare&utm_medium=link2&utm_source=uniquelinks&utlId=h70a1091381) | [Source](https://github.com/anawidiyawa-create/RFM)
     """)
+elif st.session_state.section == "churn_demo":
+    st.header("Customer Churn Prediction Demo")
+    st.markdown("""
+    Ini demo interaktif dari model **Random Forest** churn prediction (assignment telecom dataset).  
+    Fitur: Input data pelanggan → prediksi real-time risiko churn (Yes/No).  
+    Recall tinggi di training setelah oversampling.
+    """)
 
+    @st.cache_resource
+    def load_churn_assets():
+        import joblib
+        scaler = joblib.load("models/scaler_churn.joblib")
+        encoder = joblib.load("models/encoder_churn.joblib")
+        model = joblib.load("models/rf_best_churn.joblib")
+        return scaler, encoder, model
+
+    try:
+        scaler, encoder, model = load_churn_assets()
+        st.success("Model berhasil dimuat! Siap prediksi.")
+    except Exception as e:
+        st.error(f"Error loading model: {e}\nCek path file di repo GitHub atau nama file joblib.")
+        st.stop()  # stop kalau error biar nggak crash seluruh app
+
+    # Form input
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        gender = st.selectbox("Gender", ["Female", "Male"])
+        senior = st.selectbox("Senior Citizen", [0, 1])
+        partner = st.selectbox("Partner", ["Yes", "No"])
+        dependents = st.selectbox("Dependents", ["Yes", "No"])
+
+    with col2:
+        tenure = st.number_input("Tenure (bulan)", min_value=0, max_value=72, value=12)
+        contract = st.selectbox("Contract", ["Month-to-month", "One year", "Two year"])
+        paperless = st.selectbox("Paperless Billing", ["Yes", "No"])
+
+    with col3:
+        payment = st.selectbox("Payment Method", [
+            "Electronic check", "Mailed check", "Bank transfer (automatic)", "Credit card (automatic)"
+        ])
+        monthly = st.number_input("Monthly Charges ($)", min_value=18.0, max_value=120.0, value=70.0)
+        total = st.number_input("Total Charges ($)", min_value=0.0, max_value=9000.0, value=800.0)
+
+    if st.button("Jalankan Prediksi", type="primary"):
+        input_df = pd.DataFrame({
+            'Gender': [gender],
+            'SeniorCitizen': [senior],
+            'Partner': [partner],
+            'Dependents': [dependents],
+            'tenure': [tenure],
+            'Contract': [contract],
+            'PaperlessBilling': [paperless],
+            'PaymentMethod': [payment],
+            'MonthlyCharges': [monthly],
+            'TotalCharges': [total]
+        })
+
+        num_cols = ['SeniorCitizen', 'tenure', 'MonthlyCharges', 'TotalCharges']
+        cat_cols = ['Gender', 'Partner', 'Dependents', 'Contract', 'PaperlessBilling', 'PaymentMethod']
+
+        input_num_scaled = scaler.transform(input_df[num_cols])
+        input_cat_encoded = encoder.transform(input_df[cat_cols])
+        input_final = np.hstack([input_num_scaled, input_cat_encoded])
+
+        pred = model.predict(input_final)[0]
+        prob_churn = model.predict_proba(input_final)[0][1]
+
+        if pred == 1:
+            st.error(f"**Prediksi: Churn (Yes)** - Probabilitas: {prob_churn:.1%}")
+            st.warning("Pelanggan ini berpotensi berhenti berlangganan!")
+        else:
+            st.success(f"**Prediksi: Tidak Churn (No)** - Probabilitas churn: {prob_churn:.1%}")
+            st.balloons()
 
 elif st.session_state.section == "contact":
     st.header("Hubungi Saya")
